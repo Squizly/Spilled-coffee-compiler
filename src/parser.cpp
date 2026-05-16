@@ -17,7 +17,8 @@ enum class NonTerminal {
     DeclarationInit,
     DeclarationRest,
     Assignment,
-    Index,                                                                             IfStatement,
+    Index,
+    IfStatement,
     ElsePart,
     WhileStatement,
     InputStatement,
@@ -246,17 +247,17 @@ ParseTable buildParseTable() {
              t(T_RBRACE),
              nt(NonTerminal::ElsePart)},
             {ACT_NONE, ACT_NONE, ACT_NONE, ACT_FALSE_JUMP,
-             ACT_NONE, ACT_NONE, ACT_NONE, ACT_NONE});
+             ACT_NONE, ACT_NONE, ACT_ELSE_JUMP, ACT_FINISH_IF});
 
     addRule(table,
             NonTerminal::ElsePart,
             {T_ELSE},
             {t(T_ELSE), t(T_LBRACE), nt(NonTerminal::Program), t(T_RBRACE)},
-            {ACT_ELSE_JUMP, ACT_NONE, ACT_NONE, ACT_FINISH_IF});
+            {ACT_NONE, ACT_NONE, ACT_NONE, ACT_NONE});
     for (TokenType lookahead : statementStarts) {
-        addRule(table, NonTerminal::ElsePart, {lookahead}, {}, {}, {ACT_FINISH_IF});
+        addRule(table, NonTerminal::ElsePart, {lookahead}, {});
     }
-    addRule(table, NonTerminal::ElsePart, {T_RBRACE, T_EOF}, {}, {}, {ACT_FINISH_IF});
+    addRule(table, NonTerminal::ElsePart, {T_RBRACE, T_EOF}, {});
 
     addRule(table,
             NonTerminal::WhileStatement,
@@ -434,7 +435,7 @@ std::string makeParserErrorMessage(int line, int col, const std::string& message
     return out.str();
 }
 
-} // namespace
+} 
 
 RpnElement::RpnElement(ElementType elementType, int elementValue)
     : type(elementType), value(elementValue) {
@@ -832,6 +833,10 @@ void Parser::programFalseJump() {
 }
 
 void Parser::programElseJump() {
+    if (currentToken.type != T_ELSE) {
+        return;
+    }
+
     if (labelStack.empty()) {
         semanticError(lastToken, "else without pending if label");
     }
